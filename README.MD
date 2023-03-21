@@ -1,5 +1,7 @@
 # Romacs
 Emacs interaction with Roblox exploits
+![screenshot showing running script capabilities](https://i.imgur.com/epUASqr.png)
+![screenshot showing showing console capabilities](https://i.imgur.com/zeXY02i.png)
 
 ## How to install
 Put `interaction.lua` in your exploit's /autoexec file<br/>

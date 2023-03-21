@@ -18,7 +18,7 @@
 ;; - When Emacs send a message to Roblox, it's a Lua script that must be compiled with loadstring()
 ;; - When Emacs receives a message from Roblox, it's a list that looks like '(MESSAGE-TYPE DATA) This is so you can extend Romacs functionality via romacs-received-message-hook. Each hook gives a meaning to MESSAGE-TYPE and DATA
 ;;
-;; Example extension that when Roblox sends '(emacs-insert "Hello, world") it inserts "Hello, world" in current buffer
+;; Example extension that when Roblox sends "(emacs-insert \"Hello, world\")" it inserts "Hello, world" in current buffer
 ;; (add-hook 'romacs-received-message-hook
 ;;	(lambda (msg)
 ;;		(when (eq (car msg) 'emacs-insert)
@@ -30,7 +30,8 @@
 (require 'websocket)
 
 (defgroup romacs nil
-	"Interaction with Roblox exploits")
+	"Interaction with Roblox exploits"
+	:group 'external)
 
 (defcustom romacs-save-files-automatically t
 	"If t, it will save the files before compiling or running them"
@@ -45,7 +46,8 @@
 	"List of current connections to the websocket server.")
 
 (defvar romacs-received-message-hook '()
-	"Hook for when the server receives a message. Each hook receives the parsed message as first argument")
+	"Hook for when the server receives a message.
+Each hook receives the parsed message as first argument")
 
 (defun romacs-run-script (script)
 	(interactive "sScript: ")
@@ -62,7 +64,7 @@
 		nil)
 )
 
-(defun romacs-when-receive-message(_websocket frame)
+(defun romacs-when-receive-message(frame)
 	(let ((text (websocket-frame-text frame)))
 		(run-hook-with-args 'romacs-received-message-hook (car (read-from-string text))))
 )
@@ -78,7 +80,7 @@
 				(push websocket *romacs-websocket-connections*)
 			)
 			:on-message (lambda (_websocket frame)
-				(romacs-when-receive-message _websocket frame)
+				(romacs-when-receive-message frame)
 			)
 			:on-close (lambda (websocket)
 				(let ((connections *romacs-websocket-connections*))
@@ -145,16 +147,61 @@
 	)
 )
 
+;; <f3 functionality>
+;; It shows the internal Roblox console
+;; The protocol works like so: Emacs receives a '(console (:message "Hello, World" :type MessageOutput)) like message when there is a new message in the console
+;; The Lua part that sends the messages to Emacs is already implemented so don't worry. This works out of the box
+(defun format-console-message (message message-type)
+	(cond
+		((eq message-type 'MessageOutput) message)
+		((eq message-type 'MessageError) (propertize message 'face 'error))
+		((eq message-type 'MessageWarning) (propertize message 'face 'warning))
+		((eq message-type 'MessageInfo) (propertize message 'face 'success))
+	)
+)
+
+(defun romacs-console-protocol (msg)
+	(when (eq (car msg) 'console)
+		(let* (
+			(msg-value (cadr msg))
+			(*message (plist-get msg-value :message))
+			(*message-type (plist-get msg-value :type))
+		)
+			(save-current-buffer
+			(set-buffer (get-buffer-create "*ROBLOX CONSOLE*"))
+			(save-excursion
+			(goto-char (point-max))
+			(insert (format-console-message *message *message-type))
+			(newline)
+			))
+		)
+	)
+)
+
+(add-hook 'romacs-received-message-hook 'romacs-console-protocol)
+
+(defun romacs-show-roblox-console ()
+	(interactive)
+	(let ((console-buffer (get-buffer-create "*ROBLOX CONSOLE*")))
+		(if (eq (current-buffer) console-buffer)
+			(delete-window)
+			(switch-to-buffer-other-window console-buffer))
+	)
+)
+
 (define-minor-mode romacs-mode
 	"Emacs integration with exploits via WebSockets"
 	:lighter " RBLX"
 	:keymap '(
 		([f1] . romacs-run-fennel-script)
-		([f2] . romacs-view-compiled-fennel-script))
+		([f2] . romacs-view-compiled-fennel-script)
+		([f3] . romacs-show-roblox-console))
 	:global t
 	(if romacs-mode
 		(initialize-romacs-mode)
 		(stop-romacs-mode))
 )
 
-;;; romacs.el ends 
+(provide 'romacs)
+
+;;; romacs.el ends here

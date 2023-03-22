@@ -58,7 +58,7 @@ Each hook receives the parsed message as first argument")
 (defun fennel-compile-current-buffer (flags)
 	(when romacs-save-files-automatically
 		(save-buffer))
-	
+
 	(if (buffer-file-name)
 		(shell-command-to-string (concat flags " " (buffer-file-name)))
 		nil)
@@ -102,36 +102,41 @@ Each hook receives the parsed message as first argument")
 
 ;; <f1 functionality>
 ;;
-(defvar *romacs-fennel-flags* "fennel --require-as-include --no-compiler-sandbox --correlate --compile"
-	"Flags to compile a Fennel script.")
+(defcustom romacs-fennel-flags "fennel --require-as-include --no-compiler-sandbox --correlate --compile"
+	"Flags to compile a Fennel script."
+	:type 'string
+	:group 'romacs)
+
 (defun romacs-run-fennel-script ()
 	(interactive)
-	
-	(let ((script (fennel-compile-current-buffer *romacs-fennel-flags*)))
+
+	(let ((script (fennel-compile-current-buffer romacs-fennel-flags)))
 		(if script
 			(romacs-run-script script)
 			(message "Please save it as file")))
 )
 
 ;; <f2 functionality>
-(defvar *romacs-view-fennel-flags* "fennel --no-compiler-sandbox --compile"
-	"Also check *romacs-fennel-flags*. This is the same but for <f2>")
+(defcustom romacs-view-fennel-flags "fennel --no-compiler-sandbox --compile"
+	"Also check *romacs-fennel-flags*. This is the same but for <f2>"
+	:type 'string
+	:group 'romacs)
 
 (defvar romacs-output-buffer nil
 	"Local variable which contains the current buffer to which <f2> will output to.")
 
 (defun romacs-view-compiled-fennel-script ()
 	(interactive)
-	
+
 	;; check for the buffer which we'll show the compiled script
 	(setq romacs-output-buffer
 		(if (buffer-live-p romacs-output-buffer)
 			romacs-output-buffer
 			(get-buffer-create (concat "*compiled " (buffer-name) "*"))))
-	
+
 	(let (
 		(original-window (selected-window))
-		(compiled-script (fennel-compile-current-buffer *romacs-view-fennel-flags*))
+		(compiled-script (fennel-compile-current-buffer romacs-view-fennel-flags))
 		(buffer-modified (buffer-modified-p))
 	)
 		(switch-to-buffer-other-window romacs-output-buffer)
